@@ -69,8 +69,8 @@ module top(
     input   flash_miso,
 
     // VGA ports
-    output  hsync,
-    output  vsync,
+    input  hsync,
+    input  vsync,
     output  [3:0] red,
     output  [3:0] grn,
     output  [3:0] blu,
@@ -187,8 +187,8 @@ assign red = r_w;
 assign grn = g_w;
 assign blu = b_w;
 
-assign hsync = hs_w;
-assign vsync = vs_w;
+//assign hsync = hs_w;
+//assign vsync = vs_w;
 
 assign rgb_r_w = {r_w, 4'b0};
 assign rgb_g_w = {g_w, 4'b0};
@@ -244,6 +244,41 @@ assign gromclk_w = ~gromtick[2];
 assign gromclk = gromclk_n ? cpuclk_w: gromclk_w; 
 assign cpuclk = cpuclk_n ? 1'bz : cpuclk_w;
 
+    wire bdir = hsync;
+    wire bc1 = vsync;
+    wire [7:0] psg_d_o;
+    wire [7:0] psg_ch_a_o, psg_ch_b_o, psg_ch_c_o;
+    wire [15:0] audio_o;
+
+    YM2149 psg (
+        .CLK(clk_50_w),
+        .CE(cpuclk_w),
+        .RESET(!reset_n_w),
+        .BDIR(bdir),
+        .BC(bc1),
+        .DI(cd),
+        .DO(psg_d_o),
+        .CHANNEL_A(psg_ch_a_o),
+        .CHANNEL_B(psg_ch_b_o),
+        .CHANNEL_C(psg_ch_c_o),
+
+        .SEL (1'b0),
+        .MODE(1'b0),
+
+        .ACTIVE(),
+
+        .IOA_in (8'b0),
+        .IOA_out(),
+
+        .IOB_in (8'b0),
+        .IOB_out()
+    );
+
+    assign audio_o = (
+        ({4'b00, psg_ch_a_o, 4'b00}) + 
+        ({4'b00, psg_ch_b_o, 4'b00}) + 
+        ({4'b00, psg_ch_c_o, 4'b00}));
+
     localparam CLKFRQ = 25200;
     localparam AUDIO_RATE=44100;
     localparam AUDIO_BIT_WIDTH = 16;
@@ -266,14 +301,14 @@ assign cpuclk = cpuclk_n ? 1'bz : cpuclk_w;
     wire [9:0] cy, frameHeight;
     wire [9:0] cx, frameWidth;
 
-    reg [15:0] sample; 
+    //reg [15:0] sample; 
 
 
     reg [15:0] audio_sample_word [1:0], audio_sample_word0 [1:0];
     always @(posedge clk_25_w) begin       // crossing clock domain
-        audio_sample_word0[0] <= sample;
+        audio_sample_word0[0] <= audio_o;
         audio_sample_word[0] <= audio_sample_word0[0];
-        audio_sample_word0[1] <= sample;
+        audio_sample_word0[1] <= audio_o;
         audio_sample_word[1] <= audio_sample_word0[1];
     end
 
